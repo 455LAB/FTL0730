@@ -48,8 +48,8 @@
 #define DATA_BUFFER_H_
 
 #include "ftl_config.h"
-
-#define AVAILABLE_DATA_BUFFER_ENTRY_COUNT				(16 * USER_DIES)
+//modify zyb
+#define AVAILABLE_DATA_BUFFER_ENTRY_COUNT				(2 * USER_DIES)
 #define AVAILABLE_TEMPORARY_DATA_BUFFER_ENTRY_COUNT		(USER_DIES)
 
 #define DATA_BUF_NONE	0xffff
