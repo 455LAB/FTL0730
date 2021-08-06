@@ -1,162 +1,147 @@
-//////////////////////////////////////////////////////////////////////////////////
-// fmc_driver.c for Cosmos+ OpenSSD
-// Copyright (c) 2016 Hanyang University ENC Lab.
-// Contributed by Yong Ho Song <yhsong@enc.hanyang.ac.kr>
-//				  Kibin Park <kbpark@enc.hanyang.ac.kr>
-//				  Jaewook Kwak <jwkwak@enc.hanyang.ac.kr>
-//
-// This file is part of Cosmos+ OpenSSD.
-//
-// Cosmos+ OpenSSD is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation; either version 3, or (at your option)
-// any later version.
-//
-// Cosmos+ OpenSSD is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
-// See the GNU General Public License for more details.
-//
-// You should have received a copy of the GNU General Public License
-// along with Cosmos+ OpenSSD; see the file COPYING.
-// If not, see <http://www.gnu.org/licenses/>.
-//////////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////////
-// Company: ENC Lab. <http://enc.hanyang.ac.kr>
-// Engineer: Kibin Park <kbpark@enc.hanyang.ac.kr>
-//
-// Project Name: Cosmos+ OpenSSD
-// Design Name: Cosmos+ Firmware
-// Module Name: NAND Storage Controller Driver
-// File Name: nsc_driver.c
-//
-// Version: v1.1.0
-//
-// Description:
-//   - low level driver for NAND storage controller
-//////////////////////////////////////////////////////////////////////////////////
-
-//////////////////////////////////////////////////////////////////////////////////
-// Revision History:
-//
-// * v1.1.0
-//   - V2FReadPageTransferAsync needs additional input (rowAddress)
-//
-// * v1.0.0
-//   - First draft
-//////////////////////////////////////////////////////////////////////////////////
-
 #include "nsc_driver.h"
 
-unsigned int __attribute__((optimize("O0"))) V2FIsControllerBusy(V2FMCRegisters* dev)
-{
-	volatile unsigned int channelBusy = *((volatile unsigned int*)&(dev->channelBusy));
 
-	return channelBusy;
+void select_way(uint32_t base_addr, uint32_t way)
+{
+	Xil_Out32(base_addr+rAddress, way);
+	Xil_Out32(base_addr+rCommand, 0x00000020);	
+}
+void select_col(uint32_t base_addr, uint32_t col)
+{
+	Xil_Out32(base_addr+rAddress, col);
+	Xil_Out32(base_addr+rCommand, 0x00000022);	
+}
+void select_row(uint32_t base_addr, uint32_t row)
+{
+	Xil_Out32(base_addr+rAddress, row);
+	Xil_Out32(base_addr+rCommand, 0x00000024);	
+}
+void set_feature(uint32_t base_addr, uint32_t feature)
+{
+	Xil_Out32(base_addr+rAddress, feature);
+	Xil_Out32(base_addr+rCommand, 0x00000028);	
+}
+void set_length(uint32_t base_addr, uint32_t length)
+{
+	Xil_Out32(base_addr+rLength, length);
 }
 
-void __attribute__((optimize("O0"))) V2FResetSync(V2FMCRegisters* dev, int way)
+void set_DelayTap(uint32_t base_addr, uint32_t DelayTap)
 {
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_Reset;
-	while (V2FIsControllerBusy(dev));
+	Xil_Out32(base_addr+rDelayTap, DelayTap);
+}
+void reset_ffh(uint32_t base_addr, uint32_t way)
+{
+	select_way(way);
+	Xil_Out32(base_addr+rCommand, 0x00000001);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void setfeature_efh(uint32_t base_addr, uint32_t way, uint32_t feature)
+{
+	select_way(way);
+	set_feature(feature);
+	Xil_Out32(base_addr+rCommand, 0x00000002);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void getfeature_eeh(uint32_t base_addr, uint32_t way)
+{
+	select_way(way);
+	Xil_Out32(base_addr+rCommand, 0x00000005);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void readparameterpage(uint32_t base_addr, uint32_t way, uint32_t DMAWAddress)
+{
+	select_way(way);
+	set_length(256);
+	Xil_Out32(base_addr+rDMAWAddress, DMAWAddress);
+	Xil_Out32(base_addr+rCommand, 0x00010004);
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void progpage_80h_10h(uint32_t base_addr, uint32_t way, uint32_t col, uint32_t row, uint32_t length, uint32_t DMARAddress)
+{
+	select_way(way);
+	select_col(col);
+	select_row(row);
+	set_length(length);
+	Xil_Out32(base_addr+rDMARAddress, DMARAddress);
+	Xil_Out32(base_addr+rCommand, 0x00000003);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void progpage_80h_15h_cache(uint32_t base_addr, uint32_t way, uint32_t col, uint32_t row, uint32_t length, uint32_t DMARAddress)
+{
+	select_way(way);
+	select_col(col);
+	select_row(row);
+	set_length(length);
+	Xil_Out32(base_addr+rDMARAddress, DMARAddress);
+	Xil_Out32(base_addr+rCommand, 0x00010003);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void progpage_80h_11h_multplane(uint32_t base_addr, uint32_t way, uint32_t col, uint32_t row, uint32_t length, uint32_t DMARAddress)
+{
+	select_way(way);
+	select_col(col);
+	select_row(row);
+	set_length(length);
+	Xil_Out32(base_addr+rDMARAddress, DMARAddress);
+	Xil_Out32(base_addr+rCommand, 0x00020003);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void readpage_00h_30h(uint32_t base_addr, uint32_t way, uint32_t col, uint32_t row, uint32_t length, uint32_t DMAWAddress)
+{
+	select_way(way);
+	select_col(col);
+	select_row(row);
+	set_length(length);
+	Xil_Out32(base_addr+rDMAWAddress, DMAWAddress);
+	Xil_Out32(base_addr+rCommand, 0x00000004);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void eraseblock_60h_d0h(uint32_t base_addr, uint32_t way, uint32_t row)
+{
+	select_way(way);
+	select_row(row);
+	Xil_Out32(base_addr+rCommand, 0x00000006);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+}
+void eraseblock_60h_d1h_multiplane(uint32_t base_addr, uint32_t way, uint32_t row)
+{
+	select_way(way);
+	select_row(row);
+	Xil_Out32(base_addr+rCommand, 0x00020006);	
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
 }
 
-void __attribute__((optimize("O0"))) V2FSetFeaturesSync(V2FMCRegisters* dev, int way, unsigned int feature0x02, unsigned int feature0x10, unsigned int feature0x01, unsigned int payLoadAddr)
+uint8_t readstatus_70h(uint32_t base_addr, uint32_t way)
 {
-	unsigned int* payload = (unsigned int*)payLoadAddr;
-	payload[0] = feature0x02;
-	payload[1] = feature0x10;
-	payload[2] = feature0x01;
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->userData)) = (unsigned int)payload;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_SetFeatures;
-	while (V2FIsControllerBusy(dev));
-}
+	select_way(way);
+	Xil_Out32(base_addr+rCommand, 0x00000007);	
+	usleep(1);
+//	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+//	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
 
-void __attribute__((optimize("O0"))) V2FGetFeaturesSync(V2FMCRegisters* dev, int way, unsigned int* feature0x01, unsigned int* feature0x02, unsigned int* feature0x10, unsigned int* feature0x30)
+	u8 status = ((Xil_In32(base_addr+rNFCStatus) & 0x0000ff00) >> 8);
+	return status;
+}
+uint8_t readstatus_78h(uint32_t base_addr, uint32_t way, uint32_t row)
 {
-	volatile unsigned int buffer[4] = {0};
-	volatile unsigned int completion = 0;
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->userData)) = (unsigned int)buffer;
-	*((volatile unsigned int*)&(dev->completionAddress)) = (unsigned int)&completion;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_GetFeatures;
-	while (V2FIsControllerBusy(dev));
-	while (!(completion & 1));
-	*feature0x01 = buffer[0];
-	*feature0x02 = buffer[1];
-	*feature0x10 = buffer[2];
-	*feature0x30 = buffer[3];
+	select_way(way);
+	select_row(row);
+	Xil_Out32(base_addr+rCommand, 0x00010007);	
+	usleep(1);
+//	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
+//	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
+
+	u8 status = ((Xil_In32(base_addr+rNFCStatus) & 0x0000ff00) >> 8);
+	return status;
 }
-
-void __attribute__((optimize("O0"))) V2FReadPageTriggerAsync(V2FMCRegisters* dev, int way, unsigned int rowAddress)
-{
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->rowAddress)) = rowAddress;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ReadPageTrigger;
-}
-
-void __attribute__((optimize("O0"))) V2FReadPageTransferAsync(V2FMCRegisters* dev, int way, void* pageDataBuffer, void* spareDataBuffer, unsigned int* errorInformation, unsigned int* completion, unsigned int rowAddress)
-{
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->dataAddress)) = (unsigned int)pageDataBuffer;
-	*((volatile unsigned int*)&(dev->spareAddress)) = (unsigned int)spareDataBuffer;
-	*((volatile unsigned int*)&(dev->errorCountAddress)) = (unsigned int)errorInformation;
-	*((volatile unsigned int*)&(dev->completionAddress)) = (unsigned int)completion;
-	*((volatile unsigned int*)&(dev->rowAddress)) = rowAddress;
-	*completion = 0;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ReadPageTransfer;
-}
-
-void __attribute__((optimize("O0"))) V2FReadPageTransferRawAsync(V2FMCRegisters* dev, int way, void* pageDataBuffer, unsigned int* completion)
-{
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->dataAddress)) = (unsigned int)pageDataBuffer;
-	*((volatile unsigned int*)&(dev->completionAddress)) = (unsigned int)completion;
-	*completion = 0;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ReadPageTransferRaw;
-}
-
-
-void __attribute__((optimize("O0"))) V2FProgramPageAsync(V2FMCRegisters* dev, int way, unsigned int rowAddress, void* pageDataBuffer, void* spareDataBuffer)
-{
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->rowAddress)) = rowAddress;
-	*((volatile unsigned int*)&(dev->dataAddress)) = (unsigned int)pageDataBuffer;
-	*((volatile unsigned int*)&(dev->spareAddress)) = (unsigned int)spareDataBuffer;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_ProgramPage;
-}
-
-void __attribute__((optimize("O0"))) V2FEraseBlockAsync(V2FMCRegisters* dev, int way, unsigned int rowAddress)
-{
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->rowAddress)) = rowAddress;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_BlockErase;
-}
-
-void __attribute__((optimize("O0"))) V2FStatusCheckAsync(V2FMCRegisters* dev, int way, unsigned int* statusReport)
-{
-	*((volatile unsigned int*)&(dev->waySelection)) = way;
-	*((volatile unsigned int*)&(dev->completionAddress)) = (unsigned int)statusReport;
-	*statusReport = 0;
-	*((volatile unsigned int*)&(dev->cmdSelect)) = V2FCommand_StatusCheck;
-}
-
-unsigned int __attribute__((optimize("O0"))) V2FStatusCheckSync(V2FMCRegisters* dev, int way)
-{
-	volatile unsigned int status;
-	V2FStatusCheckAsync(dev, way, (unsigned int*)&status);
-	while (!(status & 1));
-	return (status >> 1);
-}
-
-unsigned int __attribute__((optimize("O0"))) V2FReadyBusyAsync(V2FMCRegisters* dev)
-{
-	volatile unsigned int readyBusy = dev->readyBusy;
-
-	return readyBusy;
-}
-
-
