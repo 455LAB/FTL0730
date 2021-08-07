@@ -4,8 +4,10 @@
 
 #include "nsc_driver.h"
 #include "xparameters.h"
-//#include "nvme/nvme.h"
+#include "nvme/nvme.h"
 
+
+#define NVME_SIM        1
 //checks NSC connection, initializes base address
 #ifdef	XPAR_NANDFLASHCONTROLLER_1_BASEADDR
 #define NSC_1_CONNECTED	1

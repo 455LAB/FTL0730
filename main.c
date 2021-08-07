@@ -58,29 +58,43 @@
 //   - First draft
 //////////////////////////////////////////////////////////////////////////////////
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include "platform.h"
+#include "xil_printf.h"
+#include "xil_exception.h"
+#include "xil_io.h"
+#include "sleep.h"
 
 
 #include "xil_cache.h"
-#include "xil_exception.h"
+//#include "xil_exception.h"
 #include "xil_mmu.h"
-#include "xparameters_ps.h"
-#include "xscugic_hw.h"
-#include "xscugic.h"
-#include "xil_printf.h"
+#include "xparameters.h"
+//#include "xscugic_hw.h"
+//#include "xscugic.h"
+//#include "xil_printf.h"
 #include "nvme/debug.h"
 
 #include "nvme/nvme.h"
 #include "nvme/nvme_main.h"
 #include "nvme/host_lld.h"
 
+#include "memory_map.h"
+//XScuGic GicInstance;
 
-XScuGic GicInstance;
+#define Generate     1
+#define Decode       2
+#define Schedule     3
+
+
 
 int main()
 {
 	unsigned int u;
 
-	XScuGic_Config *IntcConfig;
+	//XScuGic_Config *IntcConfig;
 
 	Xil_ICacheDisable();
 	Xil_DCacheDisable();
@@ -106,31 +120,90 @@ int main()
 	xil_printf("[!] MMU has been enabled.\r\n");
 
 
-	xil_printf("\r\n Hello COSMOS+ OpenSSD !!! \r\n");
+	xil_printf("\r\n Hello KCUSSD !!! \r\n");
 
 
-	Xil_ExceptionInit();
+	//Xil_ExceptionInit();
 
-	IntcConfig = XScuGic_LookupConfig(XPAR_SCUGIC_SINGLE_DEVICE_ID);
-	XScuGic_CfgInitialize(&GicInstance, IntcConfig, IntcConfig->CpuBaseAddress);
-	Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
-								(Xil_ExceptionHandler)XScuGic_InterruptHandler,
-								&GicInstance);
+	//IntcConfig = XScuGic_LookupConfig(XPAR_SCUGIC_SINGLE_DEVICE_ID);
+	//XScuGic_CfgInitialize(&GicInstance, IntcConfig, IntcConfig->CpuBaseAddress);
+	//Xil_ExceptionRegisterHandler(XIL_EXCEPTION_ID_INT,
+	//							(Xil_ExceptionHandler)XScuGic_InterruptHandler,
+	//							&GicInstance);
 
-	XScuGic_Connect(&GicInstance, 61,
-					(Xil_ExceptionHandler)dev_irq_handler,
-					(void *)0);
+	//XScuGic_Connect(&GicInstance, 61,
+	//				(Xil_ExceptionHandler)dev_irq_handler,
+	//				(void *)0);
 
-	XScuGic_Enable(&GicInstance, 61);
+	//XScuGic_Enable(&GicInstance, 61);
 
 	// Enable interrupts in the Processor.
-	Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ);
-	Xil_ExceptionEnable();
+	//Xil_ExceptionEnableMask(XIL_EXCEPTION_IRQ);
+	//Xil_ExceptionEnable();
 
-	dev_irq_init();
+	//dev_irq_init();
 
-	nvme_main();
+	//nvme_main();
+    unsigned int exeLlr;
+    unsigned int status;
+    unsigned int count;
+    count=1;
+    status = Generate;
+	xil_printf("!!! Wait until FTL reset complete !!! \r\n");
 
+	InitFTL();
+
+	xil_printf("\r\nFTL reset complete!!! \r\n");
+	xil_printf("Turn on the host PC \r\n");
+    eraseblock_60h_d0h(1,0);
+    xil_printf("erase one channel complete! \r\n");
+   
+    while(1)
+    {
+		exeLlr = 1;
+
+        
+        if(status == Generate)
+        {
+            generateReQ(count);
+            exeLlr=0;
+            status = Decode;
+            count++;
+        }
+		else if(status == Decode)
+		{
+			NVME_COMMAND nvmeCmd;
+			&nvmeCmd= (NVME_COMMAND *)(NVME_REQ_SIM_ADDR + (count-1)*sizeof(NVME_COMMAND));
+			//unsigned int cmdValid;
+
+			//cmdValid = get_nvme_cmd(&nvmeCmd.qID, &nvmeCmd.cmdSlotTag, &nvmeCmd.cmdSeqNum, nvmeCmd.cmdDword);
+
+			//if(cmdValid == 1)
+			//{
+				//if(nvmeCmd.qID == 0)
+				//{
+					//handle_nvme_admin_cmd(&nvmeCmd);
+				//}
+				//else
+				//{
+					handle_nvme_io_cmd(&nvmeCmd);
+					ReqTransSliceToLowLevel();
+					exeLlr=0;
+					status = Schedule;
+				//}
+			//}
+		}
+
+
+		if(exeLlr && (notCompletedNandReqCnt || blockedReqCnt))//(nvmeDmaReqQ.headReq != REQ_SLOT_TAG_NONE) || 
+		{
+			CheckDoneNvmeDmaReq();
+			SchedulingNandReq();
+			status = Generate;
+			if(count==10)
+				break;
+		}
+    }
 	xil_printf("done\r\n");
 
 	return 0;

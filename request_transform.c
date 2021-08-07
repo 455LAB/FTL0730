@@ -53,6 +53,7 @@
 #include "nvme/host_lld.h"
 #include "memory_map.h"
 #include "ftl_config.h"
+#include "generate.h"
 
 P_ROW_ADDR_DEPENDENCY_TABLE rowAddrDependencyTablePtr;
 
@@ -584,8 +585,10 @@ void IssueNvmeDmaReq(unsigned int reqSlotTag)
 	{
 		while(numOfNvmeBlock < reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.numOfNvmeBlock)
 		{
-			set_auto_rx_dma(reqPoolPtr->reqPool[reqSlotTag].nvmeCmdSlotTag, dmaIndex, devAddr, NVME_COMMAND_AUTO_COMPLETION_ON);
-
+			if(NVME_SIM == 0)
+			  set_auto_rx_dma(reqPoolPtr->reqPool[reqSlotTag].nvmeCmdSlotTag, dmaIndex, devAddr, NVME_COMMAND_AUTO_COMPLETION_ON);
+            else if(NVME_SIM == 1)
+              SIM_H2C_DMA(reqPoolPtr->reqPool[reqSlotTag].logicalSliceAddr , reqPoolPtr->reqPool[reqSlotTag].dataBufInfo.entry);
 			numOfNvmeBlock++;
 			dmaIndex++;
 			devAddr += BYTES_PER_NVME_BLOCK;
@@ -597,8 +600,10 @@ void IssueNvmeDmaReq(unsigned int reqSlotTag)
 	{
 		while(numOfNvmeBlock < reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.numOfNvmeBlock)
 		{
-			set_auto_tx_dma(reqPoolPtr->reqPool[reqSlotTag].nvmeCmdSlotTag, dmaIndex, devAddr, NVME_COMMAND_AUTO_COMPLETION_ON);
-
+			if(NVME_SIM == 0)
+			    set_auto_tx_dma(reqPoolPtr->reqPool[reqSlotTag].nvmeCmdSlotTag, dmaIndex, devAddr, NVME_COMMAND_AUTO_COMPLETION_ON);
+            else if(NVME_SIM == 1)
+            	SIM_C2H_DMA(reqPoolPtr->reqPool[reqSlotTag].logicalSliceAddr , reqPoolPtr->reqPool[reqSlotTag].dataBufInfo.entry);
 			numOfNvmeBlock++;
 			dmaIndex++;
 			devAddr += BYTES_PER_NVME_BLOCK;
@@ -625,19 +630,38 @@ void CheckDoneNvmeDmaReq()
 
 		if(reqPoolPtr->reqPool[reqSlotTag].reqCode  == REQ_CODE_RxDMA)
 		{
-			if(!rxDone)
+			if(NVME_SIM == 0)
+			{
+				if(!rxDone)
 				rxDone = check_auto_rx_dma_partial_done(reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.reqTail , reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.overFlowCnt);
 
-			if(rxDone)
-				SelectiveGetFromNvmeDmaReqQ(reqSlotTag);
+			    if(rxDone)
+				   SelectiveGetFromNvmeDmaReqQ(reqSlotTag);
+			}
+			else if(NVME_SIM == 1)
+			{
+				rxDone=1;
+				if(rxDone)
+				   SelectiveGetFromNvmeDmaReqQ(reqSlotTag);
+			}
+
 		}
 		else
 		{
-			if(!txDone)
-				txDone = check_auto_tx_dma_partial_done(reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.reqTail , reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.overFlowCnt);
+			if(NVME_SIM == 0)
+			{
+				if(!txDone)
+				    txDone = check_auto_tx_dma_partial_done(reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.reqTail , reqPoolPtr->reqPool[reqSlotTag].nvmeDmaInfo.overFlowCnt);
 
-			if(txDone)
-				SelectiveGetFromNvmeDmaReqQ(reqSlotTag);
+			    if(txDone)
+				    SelectiveGetFromNvmeDmaReqQ(reqSlotTag);
+			}
+            else if(NVME_SIM == 1)
+            {
+            	txDone=1;
+				if(txDone)
+				   SelectiveGetFromNvmeDmaReqQ(reqSlotTag);
+            }
 		}
 
 		reqSlotTag = prevReq;
