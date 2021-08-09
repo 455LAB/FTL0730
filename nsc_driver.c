@@ -126,7 +126,7 @@ uint8_t readstatus_70h(uint32_t base_addr, uint32_t way)
 {
 	select_way(way);
 	Xil_Out32(base_addr+rCommand, 0x00000007);	
-	usleep(1);
+	//usleep(1);
 //	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000));
 //	while(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001));
 

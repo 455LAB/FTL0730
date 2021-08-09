@@ -263,7 +263,6 @@ void SchedulingNandReqPerCh(unsigned int chNo)
 					wayNo = dieStateTablePtr->dieState[chNo][wayNo].nextWay;
 				}
 			}
-
 			if(wayPriorityTablePtr->wayPriority[chNo].eraseHead != WAY_NONE)
 			{
 				wayNo = wayPriorityTablePtr->wayPriority[chNo].eraseHead;
@@ -299,23 +298,23 @@ void SchedulingNandReqPerCh(unsigned int chNo)
 					wayNo = dieStateTablePtr->dieState[chNo][wayNo].nextWay;
 				}
 			}
-			if(wayPriorityTablePtr->wayPriority[chNo].readTransferHead != WAY_NONE)
-			{
-				wayNo = wayPriorityTablePtr->wayPriority[chNo].readTransferHead;
+			//if(wayPriorityTablePtr->wayPriority[chNo].readTransferHead != WAY_NONE)
+			//{
+			//	wayNo = wayPriorityTablePtr->wayPriority[chNo].readTransferHead;
 
-				while(wayNo != WAY_NONE)
-				{
-					ExecuteNandReq(chNo, wayNo, REQ_STATUS_RUNNING);
+			//	while(wayNo != WAY_NONE)
+			//	{
+			//		ExecuteNandReq(chNo, wayNo, REQ_STATUS_RUNNING);
 
-					SelectiveGetFromNandReadTransferList(chNo, wayNo);
-					PutToNandStatusReportList(chNo, wayNo);
+			//		SelectiveGetFromNandReadTransferList(chNo, wayNo);
+			//		PutToNandStatusReportList(chNo, wayNo);
 
-					if(V2FIsControllerBusy(chCtlReg[chNo]))
-						return;
+			//		if(V2FIsControllerBusy(chCtlReg[chNo]))
+			//			return;
 
-					wayNo = dieStateTablePtr->dieState[chNo][wayNo].nextWay;
-				}
-			}
+			//		wayNo = dieStateTablePtr->dieState[chNo][wayNo].nextWay;
+			//	}
+			//}
 		}
 
 }
@@ -651,48 +650,55 @@ void IssueNandReq(unsigned int chNo, unsigned int wayNo)
 	rowAddr = GenerateNandRowAddr(reqSlotTag);
 	dataBufAddr = (void*)GenerateDataBufAddr(reqSlotTag);
 	spareDataBufAddr = (void*)GenerateSpareDataBufAddr(reqSlotTag);
-
+    uint32_t base_addr;
+    if(chNo==2)
+    	base_addr=NSC_1_BASEADDR;
+    else if(chNo==1)
+    	base_addr=NSC_0_BASEADDR;
+    	
 	if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
-
-		V2FReadPageTriggerAsync(chCtlReg[chNo], wayNo, rowAddr);
+        readpage_00h_30h(base_addr,  wayNo, uint32_t col, uint32_t row, BYTES_PER_DATA_REGION_OF_PAGE, dataBufAddr);
+		//V2FReadPageTriggerAsync(chCtlReg[chNo], wayNo, rowAddr);
 	}
-	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ_TRANSFER)
-	{
-		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_COMPLETION_FLAG;
+	//else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ_TRANSFER)
+	//{
+	//	dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_COMPLETION_FLAG;
 
-		errorInfo = (unsigned int*)(&eccErrorInfoTablePtr->errorInfo[chNo][wayNo]);
-		completion = (unsigned int*)(&completeFlagTablePtr->completeFlag[chNo][wayNo]);
+	//	errorInfo = (unsigned int*)(&eccErrorInfoTablePtr->errorInfo[chNo][wayNo]);
+	//	completion = (unsigned int*)(&completeFlagTablePtr->completeFlag[chNo][wayNo]);
 
-		if(reqPoolPtr->reqPool[reqSlotTag].reqOpt.nandEcc == REQ_OPT_NAND_ECC_ON)
-			V2FReadPageTransferAsync(chCtlReg[chNo], wayNo, dataBufAddr, spareDataBufAddr, errorInfo, completion, rowAddr);
-		else
-			V2FReadPageTransferRawAsync(chCtlReg[chNo], wayNo, dataBufAddr, completion);
-	}
+	//	if(reqPoolPtr->reqPool[reqSlotTag].reqOpt.nandEcc == REQ_OPT_NAND_ECC_ON)
+	//		V2FReadPageTransferAsync(chCtlReg[chNo], wayNo, dataBufAddr, spareDataBufAddr, errorInfo, completion, rowAddr);
+	//	else
+	//		V2FReadPageTransferRawAsync(chCtlReg[chNo], wayNo, dataBufAddr, completion);
+	//}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_WRITE)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
 
-		V2FProgramPageAsync(chCtlReg[chNo], wayNo, rowAddr, dataBufAddr, spareDataBufAddr);
+        progpage_80h_10h(base_addr, wayNo, uint32_t col, uint32_t row, BYTES_PER_DATA_REGION_OF_PAGE, spareDataBufAddr);
+		//V2FProgramPageAsync(chCtlReg[chNo], wayNo, rowAddr, dataBufAddr, spareDataBufAddr);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_ERASE)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
 
-		V2FEraseBlockAsync(chCtlReg[chNo], wayNo, rowAddr);
+        eraseblock_60h_d0h(base_addr, wayNo, uint32_t row);
+		//V2FEraseBlockAsync(chCtlReg[chNo], wayNo, rowAddr);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_RESET)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_NONE;
-
-		V2FResetSync(chCtlReg[chNo], wayNo);
+        reset_ffh(base_addr, wayNo);
+		//V2FResetSync(chCtlReg[chNo], wayNo);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_SET_FEATURE)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_NONE;
-
-		V2FEnterToggleMode(chCtlReg[chNo], wayNo, TEMPORARY_PAY_LOAD_ADDR);
+        setfeature_efh(base_addr, wayNo, 0x15000000)
+		//V2FEnterToggleMode(chCtlReg[chNo], wayNo, TEMPORARY_PAY_LOAD_ADDR);
 	}
 	else
 		assert(!"[WARNING] not defined nand req [WARNING]");
@@ -803,43 +809,52 @@ unsigned int CheckReqStatus(unsigned int chNo, unsigned int wayNo)
 	unsigned int* statusReportPtr;
 
 	reqSlotTag = nandReqQ[chNo][wayNo].headReq;
-	if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_COMPLETION_FLAG)
+	//if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_COMPLETION_FLAG)
+	//{
+	//	completeFlag = completeFlagTablePtr->completeFlag[chNo][wayNo];
+
+	//	if(V2FTransferComplete(completeFlag))
+	//	{
+	//		if(reqPoolPtr->reqPool[reqSlotTag].reqOpt.nandEcc == REQ_OPT_NAND_ECC_ON)
+	//		{
+	//			errorInfo = CheckEccErrorInfo(chNo, wayNo);
+
+	//			if (errorInfo == ERROR_INFO_WARNING)
+	//				return REQ_STATUS_WARNING;
+	//			else if (errorInfo == ERROR_INFO_FAIL)
+	//				return REQ_STATUS_FAIL;
+	//		}
+	//		return REQ_STATUS_DONE;
+	//	}
+	//}
+	//else 
+	uint32_t base_addr;
+    if(chNo==2)
+    	base_addr=NSC_1_BASEADDR;
+    else if(chNo==1)
+    	base_addr=NSC_0_BASEADDR;
+	if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_CHECK)
 	{
-		completeFlag = completeFlagTablePtr->completeFlag[chNo][wayNo];
+		//statusReportPtr = (unsigned int*)(&statusReportTablePtr->statusReport[chNo][wayNo]);
 
-		if(V2FTransferComplete(completeFlag))
-		{
-			if(reqPoolPtr->reqPool[reqSlotTag].reqOpt.nandEcc == REQ_OPT_NAND_ECC_ON)
-			{
-				errorInfo = CheckEccErrorInfo(chNo, wayNo);
-
-				if (errorInfo == ERROR_INFO_WARNING)
-					return REQ_STATUS_WARNING;
-				else if (errorInfo == ERROR_INFO_FAIL)
-					return REQ_STATUS_FAIL;
-			}
-			return REQ_STATUS_DONE;
-		}
-	}
-	else if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_CHECK)
-	{
-		statusReportPtr = (unsigned int*)(&statusReportTablePtr->statusReport[chNo][wayNo]);
-
-		V2FStatusCheckAsync(chCtlReg[chNo], wayNo, statusReportPtr);
+        readstatus_70h(base_addr, wayNo);
+		//V2FStatusCheckAsync(chCtlReg[chNo], wayNo, statusReportPtr);
 
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_REPORT;
 	}
 	else if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_REPORT)
 	{
 		statusReport = statusReportTablePtr->statusReport[chNo][wayNo];
+        u8 status = ((Xil_In32(base_addr+rNFCStatus) & 0x0000ff00) >> 8);
 
-		if(V2FRequestReportDone(statusReport))
+		if(((Xil_In32(base_addr+rNFCStatus) & 0x0000ff00) >> 8)！=0x0)
 		{
-			status = V2FEliminateReportDoneFlag(statusReport);
-			if(V2FRequestComplete(status))
+			//status = V2FEliminateReportDoneFlag(statusReport);
+
+			if(statu & 0x01==0x0)
 			{
-				if (V2FRequestFail(status))
-					return REQ_STATUS_FAIL;
+				//if (V2FRequestFail(status))
+				//	return REQ_STATUS_FAIL;
 
 				dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_NONE;
 				return REQ_STATUS_DONE;
@@ -850,9 +865,9 @@ unsigned int CheckReqStatus(unsigned int chNo, unsigned int wayNo)
 	}
 	else if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_NONE)
 	{
-		readyBusy = V2FReadyBusyAsync(chCtlReg[chNo]);
+		readyBusy = ((Xil_In32(base_addr+rNandRBStatus) & 0x0000ff00) >> 8);
 
-		if(V2FWayReady(readyBusy, wayNo))
+		if(readyBusy==1)
 			return REQ_STATUS_DONE;
 	}
 	else
@@ -900,13 +915,13 @@ void ExecuteNandReq(unsigned int chNo, unsigned int wayNo, unsigned int reqStatu
 		case DIE_STATE_EXE:
 			if(reqStatus == REQ_STATUS_DONE)
 			{
-				if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ)
-					reqPoolPtr->reqPool[reqSlotTag].reqCode = REQ_CODE_READ_TRANSFER;
-				else
-				{
-					retryLimitTablePtr->retryLimit[chNo][wayNo] = RETRY_LIMIT;
+				//if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ)
+				//	reqPoolPtr->reqPool[reqSlotTag].reqCode = REQ_CODE_READ_TRANSFER;
+				//else
+				//{
+					//retryLimitTablePtr->retryLimit[chNo][wayNo] = RETRY_LIMIT;
 					GetFromNandReqQ(chNo, wayNo, reqStatus, reqPoolPtr->reqPool[reqSlotTag].reqCode);
-				}
+				//}
 
 				dieStateTablePtr->dieState[chNo][wayNo].dieState = DIE_STATE_IDLE;
 			}
