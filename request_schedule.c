@@ -659,7 +659,7 @@ void IssueNandReq(unsigned int chNo, unsigned int wayNo)
 	if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
-        readpage_00h_30h(base_addr,  wayNo, uint32_t col, uint32_t row, BYTES_PER_DATA_REGION_OF_PAGE, dataBufAddr);
+        readpage_00h_30h(base_addr,  wayNo, 0x00000000, rowAddr, BYTES_PER_DATA_REGION_OF_PAGE, dataBufAddr);
 		//V2FReadPageTriggerAsync(chCtlReg[chNo], wayNo, rowAddr);
 	}
 	//else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ_TRANSFER)
@@ -678,14 +678,14 @@ void IssueNandReq(unsigned int chNo, unsigned int wayNo)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
 
-        progpage_80h_10h(base_addr, wayNo, uint32_t col, uint32_t row, BYTES_PER_DATA_REGION_OF_PAGE, spareDataBufAddr);
+        progpage_80h_10h(base_addr, wayNo, 0x00000000, rowAddr, BYTES_PER_DATA_REGION_OF_PAGE, spareDataBufAddr);
 		//V2FProgramPageAsync(chCtlReg[chNo], wayNo, rowAddr, dataBufAddr, spareDataBufAddr);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_ERASE)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
 
-        eraseblock_60h_d0h(base_addr, wayNo, uint32_t row);
+        eraseblock_60h_d0h(base_addr, wayNo, rowAddr);
 		//V2FEraseBlockAsync(chCtlReg[chNo], wayNo, rowAddr);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_RESET)
