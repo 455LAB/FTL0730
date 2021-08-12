@@ -159,7 +159,7 @@ void CheckConfigRestriction()
 		assert(!"[WARNING] Configuration Error: WAY [WARNING]");
 	if(USER_BLOCKS_PER_LUN > MAIN_BLOCKS_PER_LUN)
 		assert(!"[WARNING] Configuration Error: BLOCK [WARNING]");
-	if((BITS_PER_FLASH_CELL != SLC_MODE) && (BITS_PER_FLASH_CELL != MLC_MODE))
+	if((BITS_PER_FLASH_CELL != SLC_MODE) /*&& (BITS_PER_FLASH_CELL != MLC_MODE)*/)
 		assert(!"[WARNING] Configuration Error: BIT_PER_FLASH_CELL [WARNING]");
 
 	if(RESERVED_DATA_BUFFER_BASE_ADDR + 0x00200000 > COMPLETE_FLAG_TABLE_ADDR)

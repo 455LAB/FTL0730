@@ -80,16 +80,16 @@
 //#define	PAGES_PER_MLC_BLOCK			(ROWS_PER_MLC_BLOCK)
 
 //ECC encoder/decoder specification
-//#define ECC_CHUNKS_PER_PAGE				32
-//#define BIT_ERROR_THRESHOLD_PER_CHUNK	20
-//#define ERROR_INFO_WORD_COUNT 			11
+#define ECC_CHUNKS_PER_PAGE				32
+#define BIT_ERROR_THRESHOLD_PER_CHUNK	20
+#define ERROR_INFO_WORD_COUNT 			11
 
 
 //------------------------------
 //NVMe Controller Specifications
 //------------------------------
 
-//#define	BYTES_PER_NVME_BLOCK		4096
+#define	BYTES_PER_NVME_BLOCK		4096
 //#define NVME_BLOCKS_PER_PAGE		(BYTES_PER_DATA_REGION_OF_PAGE / BYTES_PER_NVME_BLOCK)
 
 
@@ -112,7 +112,7 @@
 #define	BYTES_PER_SPARE_REGION_OF_SLICE		448
 
 #define SLICES_PER_PAGE				(BYTES_PER_DATA_REGION_OF_PAGE / BYTES_PER_DATA_REGION_OF_SLICE)	//a slice directs a page, full page mapping
-//#define NVME_BLOCKS_PER_SLICE		(BYTES_PER_DATA_REGION_OF_SLICE / BYTES_PER_NVME_BLOCK)
+#define NVME_BLOCKS_PER_SLICE		(BYTES_PER_DATA_REGION_OF_SLICE / BYTES_PER_NVME_BLOCK)
 
 #define	USER_DIES					(USER_CHANNELS * USER_WAYS)
 

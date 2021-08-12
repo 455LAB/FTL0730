@@ -54,8 +54,8 @@
 #ifndef __HOST_LLD_H_
 #define __HOST_LLD_H_
 
-
-#define HOST_IP_ADDR						(XPAR_NVMEHOSTCONTROLLER_0_BASEADDR)
+#include "xparameters.h"
+#define HOST_IP_ADDR						(XPAR_NANDFLASHCONTROLLER_0_BASEADDR)
 
 #define DEV_IRQ_MASK_REG_ADDR				(HOST_IP_ADDR + 0x4)
 #define DEV_IRQ_CLEAR_REG_ADDR				(HOST_IP_ADDR + 0x8)

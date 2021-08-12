@@ -697,7 +697,7 @@ void IssueNandReq(unsigned int chNo, unsigned int wayNo)
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_SET_FEATURE)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_NONE;
-        setfeature_efh(base_addr, wayNo, 0x15000000)
+        setfeature_efh(base_addr, wayNo, 0x15000000);
 		//V2FEnterToggleMode(chCtlReg[chNo], wayNo, TEMPORARY_PAY_LOAD_ADDR);
 	}
 	else
@@ -847,11 +847,11 @@ unsigned int CheckReqStatus(unsigned int chNo, unsigned int wayNo)
 		statusReport = statusReportTablePtr->statusReport[chNo][wayNo];
         u8 status = ((Xil_In32(base_addr+rNFCStatus) & 0x0000ff00) >> 8);
 
-		if(((Xil_In32(base_addr+rNFCStatus) & 0x0000ff00) >> 8)！=0x0)
+		if(((Xil_In32(base_addr+rNFCStatus) & 0x0000ff00) >> 8)!=0x0)
 		{
 			//status = V2FEliminateReportDoneFlag(statusReport);
 
-			if(statu & 0x01==0x0)
+			if(status & 0x01==0x0)
 			{
 				//if (V2FRequestFail(status))
 				//	return REQ_STATUS_FAIL;

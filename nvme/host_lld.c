@@ -60,7 +60,7 @@
 #include "host_lld.h"
 
 extern NVME_CONTEXT g_nvmeTask;
-HOST_DMA_STATUS g_hostDmaStatus;
+extern HOST_DMA_STATUS g_hostDmaStatus;
 HOST_DMA_ASSIST_STATUS g_hostDmaAssistStatus;
 
 void dev_irq_init()

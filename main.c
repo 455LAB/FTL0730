@@ -155,7 +155,7 @@ int main()
 
 	xil_printf("\r\nFTL reset complete!!! \r\n");
 	xil_printf("Turn on the host PC \r\n");
-    eraseblock_60h_d0h(1,0);
+    eraseblock_60h_d0h(NSC_0_BASEADDR,1,0);
     xil_printf("erase one channel complete! \r\n");
    
     while(1)

@@ -22,6 +22,9 @@
 //#define NFC0 XPAR_NANDFLASHCONTROLLER_0_BASEADDR
 //#define NFC1 XPAR_NANDFLASHCONTROLLER_1_BASEADDR
 
+#include "xil_types.h"
+#include "xil_io.h"
+
 typedef struct
 {
 	unsigned int rCommand;
@@ -47,7 +50,7 @@ typedef struct
 #define rNandRBStatus 0x20
 #define rDelayTap     0x24
 
-#define WP    0x80
+#define WRP    0x80
 #define RDY   0x40
 #define ARDY  0x20
 #define FAILC 0x02
