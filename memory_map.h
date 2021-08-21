@@ -8,7 +8,7 @@
 #include "request_transform.h"
 #include "garbage_collection.h"
 
-#define DRAM_START_ADDR					0x00100000//XPAR_MIG_0_BASEADDR //xparameters
+#define DRAM_START_ADDR					XPAR_DDR4_0_BASEADDR + 0x00100000//XPAR_MIG_0_BASEADDR //xparameters
 
 #define MEMORY_SEGMENTS_START_ADDR		DRAM_START_ADDR
 #define MEMORY_SEGMENTS_END_ADDR		DRAM_START_ADDR + 0x000FFFFF

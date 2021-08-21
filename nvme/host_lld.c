@@ -59,9 +59,11 @@
 #include "nvme.h"
 #include "host_lld.h"
 
+#include "../ftl_config.h"
+#include "../memory_map.h"
 extern NVME_CONTEXT g_nvmeTask;
-extern HOST_DMA_STATUS g_hostDmaStatus;
-HOST_DMA_ASSIST_STATUS g_hostDmaAssistStatus;
+//extern HOST_DMA_STATUS g_hostDmaStatus;
+//HOST_DMA_ASSIST_STATUS g_hostDmaAssistStatus;
 
 void dev_irq_init()
 {
@@ -258,9 +260,9 @@ void set_nvme_slot_release(unsigned int cmdSlotTag)
 	nvmeReg.cmdSlotTag = cmdSlotTag;
 	nvmeReg.cplType = CMD_SLOT_RELEASE_TYPE;
 
-	IO_WRITE32(NVME_CPL_FIFO_REG_ADDR, nvmeReg.dword[0]);
+//	IO_WRITE32(NVME_CPL_FIFO_REG_ADDR, nvmeReg.dword[0]);              //0814 change
 	//IO_WRITE32((NVME_CPL_FIFO_REG_ADDR + 4), nvmeReg.dword[1]);
-	IO_WRITE32((NVME_CPL_FIFO_REG_ADDR + 8), nvmeReg.dword[2]);
+//	IO_WRITE32((NVME_CPL_FIFO_REG_ADDR + 8), nvmeReg.dword[2]);       //0814 change
 }
 
 void set_nvme_cpl(unsigned int sqId, unsigned int cid, unsigned int specific, unsigned int statusFieldWord)
@@ -544,3 +546,42 @@ unsigned int check_auto_rx_dma_partial_done(unsigned int tailIndex, unsigned int
 
 	return 0;
 }
+
+
+void SIM_H2C_DMA( unsigned int lba , unsigned int databuffer_index)
+{
+	unsigned int datasim_no;
+	datasim_no = (lba - 0x00000000)  + 1; //  / BYTES_PER_DATA_REGION_OF_SLICE
+    unsigned int i;
+    char * char_addr_ptr;
+    char * databuffer_ptr;
+    char_addr_ptr = (char*)(NVME_DATA_SIM_ADDR + (datasim_no-1) * BYTES_PER_DATA_REGION_OF_SLICE);
+    databuffer_ptr = (char*)(DATA_BUFFER_BASE_ADDR + databuffer_index * BYTES_PER_DATA_REGION_OF_SLICE);
+    for(i=0 ; i<BYTES_PER_DATA_REGION_OF_SLICE ; i++)
+    {
+    	*(databuffer_ptr+i) = *(char_addr_ptr+i);
+    }
+    //unsigned char tempTail;
+    g_hostDmaStatus.fifoTail.autoDmaRx++;
+    //g_hostDmaStatus.fifoTail.autoDmaRx++;
+    g_hostDmaStatus.autoDmaRxCnt++;
+}
+
+void SIM_C2H_DMA(unsigned int lba , unsigned int databuffer_index)
+{
+	unsigned int datasim_no;
+	datasim_no = ((lba - 0x00000000)  + 1) * 2;
+    unsigned int i;
+    char * char_addr_ptr;
+    char * databuffer_ptr;
+    char_addr_ptr = (char*)(NVME_DATA_SIM_ADDR + (datasim_no-1) * BYTES_PER_DATA_REGION_OF_SLICE);
+    databuffer_ptr = (char*)(DATA_BUFFER_BASE_ADDR + databuffer_index * BYTES_PER_DATA_REGION_OF_SLICE);
+    for(i=0 ; i<BYTES_PER_DATA_REGION_OF_SLICE ; i++)
+    {
+    	*(char_addr_ptr+i) = *(databuffer_ptr+i);
+    }
+    //unsigned char tempTail;
+    g_hostDmaStatus.fifoTail.autoDmaRx++; //tempTail =
+    g_hostDmaStatus.autoDmaTxCnt++;
+}
+

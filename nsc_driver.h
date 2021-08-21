@@ -24,6 +24,8 @@
 
 #include "xil_types.h"
 #include "xil_io.h"
+#include "sleep.h"
+#include <stdio.h>
 
 typedef struct
 {

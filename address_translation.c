@@ -84,7 +84,7 @@ void InitAddressMap()
 	sliceAllocationTargetDie = FindDieForFreeSliceAllocation();
 
 	InitSliceMap();
-	InitBlockDieMap();
+//	InitBlockDieMap();
 }
 
 void InitSliceMap()
@@ -94,6 +94,11 @@ void InitSliceMap()
 	{
 		logicalSliceMapPtr->logicalSlice[sliceAddr].virtualSliceAddr = VSA_NONE;
 		virtualSliceMapPtr->virtualSlice[sliceAddr].logicalSliceAddr = LSA_NONE;
+		//if(sliceAddr > 100000)
+		  //   {
+			//printf("sliceAddr = 0x%08x\n\r", sliceAddr);
+		//	return;
+		//     }
 	}
 }
 

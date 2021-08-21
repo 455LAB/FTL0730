@@ -323,6 +323,9 @@ typedef struct _HOST_DMA_ASSIST_STATUS
 	unsigned int autoDmaRxOverFlowCnt;
 } HOST_DMA_ASSIST_STATUS;
 
+HOST_DMA_STATUS g_hostDmaStatus;
+HOST_DMA_ASSIST_STATUS g_hostDmaAssistStatus;
+
 void dev_irq_init();
 
 void dev_irq_handler();
@@ -367,8 +370,11 @@ unsigned int check_auto_tx_dma_partial_done(unsigned int tailIndex, unsigned int
 
 unsigned int check_auto_rx_dma_partial_done(unsigned int tailIndex, unsigned int tailAssistIndex);
 
-extern HOST_DMA_STATUS g_hostDmaStatus;
-extern HOST_DMA_ASSIST_STATUS g_hostDmaAssistStatus;
+void SIM_H2C_DMA(unsigned int lba , unsigned int databuffer_index);
+void SIM_C2H_DMA(unsigned int lba , unsigned int databuffer_index);
+
+//extern HOST_DMA_STATUS g_hostDmaStatus;
+//extern HOST_DMA_ASSIST_STATUS g_hostDmaAssistStatus;
 
 
 #endif	//__HOST_LLD_H_

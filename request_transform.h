@@ -48,7 +48,7 @@
 
 #include "ftl_config.h"
 #include "nvme/nvme.h"
-
+#include "nvme/host_lld.h "
 #define NVME_COMMAND_AUTO_COMPLETION_OFF	0
 #define NVME_COMMAND_AUTO_COMPLETION_ON		1
 

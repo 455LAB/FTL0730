@@ -70,7 +70,7 @@
 
 #include "xil_cache.h"
 //#include "xil_exception.h"
-#include "xil_mmu.h"
+//#include "xil_mmu.h"
 #include "xparameters.h"
 //#include "xscugic_hw.h"
 //#include "xscugic.h"
@@ -82,6 +82,8 @@
 #include "nvme/host_lld.h"
 
 #include "memory_map.h"
+#include "generate.h"
+#include "nvme/nvme_io_cmd.h"
 //XScuGic GicInstance;
 
 #define Generate     1
@@ -92,32 +94,34 @@
 
 int main()
 {
-	unsigned int u;
+	init_platform();
+	print("Hello World\n\r");
+	//unsigned int u;
 
 	//XScuGic_Config *IntcConfig;
 
 	Xil_ICacheDisable();
 	Xil_DCacheDisable();
-	Xil_DisableMMU();
+	//Xil_DisableMMU();
 
 	// Paging table set
 	#define MB (1024*1024)
-	for (u = 0; u < 4096; u++)
-	{
-		if (u < 0x2)
-			Xil_SetTlbAttributes(u * MB, 0xC1E); // cached & buffered
-		else if (u < 0x180)
-			Xil_SetTlbAttributes(u * MB, 0xC12); // uncached & nonbuffered
-		else if (u < 0x400)
-			Xil_SetTlbAttributes(u * MB, 0xC1E); // cached & buffered
-		else
-			Xil_SetTlbAttributes(u * MB, 0xC12); // uncached & nonbuffered
-	}
+	//for (u = 0; u < 4096; u++)
+	//{
+	//	if (u < 0x2)
+	//		Xil_SetTlbAttributes(u * MB, 0xC1E); // cached & buffered
+	//	else if (u < 0x180)
+	//		Xil_SetTlbAttributes(u * MB, 0xC12); // uncached & nonbuffered
+	//	else if (u < 0x400)
+	//		Xil_SetTlbAttributes(u * MB, 0xC1E); // cached & buffered
+	//	else
+	//		Xil_SetTlbAttributes(u * MB, 0xC12); // uncached & nonbuffered
+	//}
 
-	Xil_EnableMMU();
+	//Xil_EnableMMU();
 	Xil_ICacheEnable();
 	Xil_DCacheEnable();
-	xil_printf("[!] MMU has been enabled.\r\n");
+	xil_printf("[!] DCache and ICache has been enabled.\r\n");
 
 
 	xil_printf("\r\n Hello KCUSSD !!! \r\n");
@@ -154,9 +158,10 @@ int main()
 	InitFTL();
 
 	xil_printf("\r\nFTL reset complete!!! \r\n");
-	xil_printf("Turn on the host PC \r\n");
+	//xil_printf("Turn on the host PC \r\n");
     eraseblock_60h_d0h(NSC_0_BASEADDR,1,0);
-    xil_printf("erase one channel complete! \r\n");
+    eraseblock_60h_d0h(NSC_1_BASEADDR,1,0);
+    xil_printf("erase two channels complete! \r\n");
    
     while(1)
     {
@@ -168,12 +173,12 @@ int main()
             generateReQ(count);
             exeLlr=0;
             status = Decode;
-            count++;
+
         }
 		else if(status == Decode)
 		{
-			NVME_COMMAND nvmeCmd;
-			&nvmeCmd= (NVME_COMMAND *)(NVME_REQ_SIM_ADDR + (count-1)*sizeof(NVME_COMMAND));
+			NVME_COMMAND* nvmeCmd_ptr;
+			nvmeCmd_ptr = (NVME_COMMAND *)(NVME_REQ_SIM_ADDR + (count-1)*sizeof(NVME_COMMAND));
 			//unsigned int cmdValid;
 
 			//cmdValid = get_nvme_cmd(&nvmeCmd.qID, &nvmeCmd.cmdSlotTag, &nvmeCmd.cmdSeqNum, nvmeCmd.cmdDword);
@@ -186,25 +191,24 @@ int main()
 				//}
 				//else
 				//{
-					handle_nvme_io_cmd(&nvmeCmd);
+					handle_nvme_io_cmd(nvmeCmd_ptr);
 					ReqTransSliceToLowLevel();
 					exeLlr=0;
 					status = Schedule;
+					count++;
 				//}
 			//}
 		}
-
-
-		if(exeLlr && (notCompletedNandReqCnt || blockedReqCnt))//(nvmeDmaReqQ.headReq != REQ_SLOT_TAG_NONE) || 
+		else if(status == Schedule)//exeLlr && (notCompletedNandReqCnt || blockedReqCnt))//(nvmeDmaReqQ.headReq != REQ_SLOT_TAG_NONE) ||
 		{
 			CheckDoneNvmeDmaReq();
 			SchedulingNandReq();
 			status = Generate;
-			if(count==10)
+			if(count==5)
 				break;
 		}
     }
 	xil_printf("done\r\n");
-
+	cleanup_platform();
 	return 0;
 }

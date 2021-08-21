@@ -144,8 +144,12 @@ void SchedulingNandReq()
 void SchedulingNandReqPerCh(unsigned int chNo)
 {
 	unsigned int readyBusy, wayNo, reqStatus, nextWay, waitWayCnt;
-
+	uint32_t base_addr;
 	waitWayCnt = 0;
+    if(chNo==1)
+       base_addr=NSC_1_BASEADDR;
+    else if(chNo==0)
+       base_addr=NSC_0_BASEADDR;
 	if(wayPriorityTablePtr->wayPriority[chNo].idleHead != WAY_NONE)
 	{
 		wayNo = wayPriorityTablePtr->wayPriority[chNo].idleHead;
@@ -173,12 +177,12 @@ void SchedulingNandReqPerCh(unsigned int chNo)
 	}
 	if(wayPriorityTablePtr->wayPriority[chNo].statusReportHead != WAY_NONE)
 	{
-		readyBusy = V2FReadyBusyAsync(chCtlReg[chNo]);
+		readyBusy = Xil_In32(base_addr+rNandRBStatus);
 		wayNo = wayPriorityTablePtr->wayPriority[chNo].statusReportHead;
 
 		while(wayNo != WAY_NONE)
 		{
-			if(V2FWayReady(readyBusy, wayNo))
+			if((readyBusy & 0x00000001) == 0x00000001)//V2FWayReady(readyBusy, wayNo)
 			{
 				reqStatus = CheckReqStatus(chNo, wayNo);
 
@@ -222,24 +226,24 @@ void SchedulingNandReqPerCh(unsigned int chNo)
 			}
 		}
 	}
-	if(waitWayCnt != USER_WAYS)
-		if(!V2FIsControllerBusy(chCtlReg[chNo]))
+	if(waitWayCnt != USER_WAYS)//((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000)
+		if(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000000))//!V2FIsControllerBusy(chCtlReg[chNo])
 		{
 			if(wayPriorityTablePtr->wayPriority[chNo].statusCheckHead != WAY_NONE)
 			{
-				readyBusy = V2FReadyBusyAsync(chCtlReg[chNo]);
+				readyBusy = Xil_In32(base_addr+rNandRBStatus);//V2FReadyBusyAsync(chCtlReg[chNo]);
 				wayNo = wayPriorityTablePtr->wayPriority[chNo].statusCheckHead;
 
 				while(wayNo != WAY_NONE)
 				{
-					if(V2FWayReady(readyBusy, wayNo))
+					if((readyBusy & 0x00000001) == 0x00000001)//V2FWayReady(readyBusy, wayNo))
 					{
 						reqStatus = CheckReqStatus(chNo, wayNo);
 
 						SelectiveGetFromNandStatusCheckList(chNo,wayNo);
 						PutToNandStatusReportList(chNo, wayNo);
 
-						if(V2FIsControllerBusy(chCtlReg[chNo]))
+						if(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001))//V2FIsControllerBusy(chCtlReg[chNo]))
 							return;
 					}
 
@@ -256,8 +260,8 @@ void SchedulingNandReqPerCh(unsigned int chNo)
 
 					SelectiveGetFromNandReadTriggerList(chNo, wayNo);
 					PutToNandStatusCheckList(chNo, wayNo);
-
-					if(V2FIsControllerBusy(chCtlReg[chNo]))
+					readyBusy = Xil_In32(base_addr+rNandRBStatus);
+					if(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001))//controller is busy
 						return;
 
 					wayNo = dieStateTablePtr->dieState[chNo][wayNo].nextWay;
@@ -275,7 +279,7 @@ void SchedulingNandReqPerCh(unsigned int chNo)
 					SelectiveGetFromNandEraseList(chNo, wayNo);
 					PutToNandStatusCheckList(chNo, wayNo);
 
-					if(V2FIsControllerBusy(chCtlReg[chNo]))
+					if(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001))//V2FIsControllerBusy(chCtlReg[chNo]))
 						return;
 
 					wayNo = dieStateTablePtr->dieState[chNo][wayNo].nextWay;
@@ -292,7 +296,7 @@ void SchedulingNandReqPerCh(unsigned int chNo)
 					SelectiveGetFromNandWriteList(chNo, wayNo);
 					PutToNandStatusCheckList(chNo, wayNo);
 
-					if(V2FIsControllerBusy(chCtlReg[chNo]))
+					if(((Xil_In32(base_addr+rNFCStatus) & 0x00000001) == 0x00000001))//V2FIsControllerBusy(chCtlReg[chNo]))
 						return;
 
 					wayNo = dieStateTablePtr->dieState[chNo][wayNo].nextWay;
@@ -651,15 +655,19 @@ void IssueNandReq(unsigned int chNo, unsigned int wayNo)
 	dataBufAddr = (void*)GenerateDataBufAddr(reqSlotTag);
 	spareDataBufAddr = (void*)GenerateSpareDataBufAddr(reqSlotTag);
     uint32_t base_addr;
-    if(chNo==2)
+    if(chNo==1)
+    	{
     	base_addr=NSC_1_BASEADDR;
-    else if(chNo==1)
+    	}
+    else if(chNo==0)
+    	{
     	base_addr=NSC_0_BASEADDR;
+    	}
     	
 	if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
-        readpage_00h_30h(base_addr,  wayNo, 0x00000000, rowAddr, BYTES_PER_DATA_REGION_OF_PAGE, dataBufAddr);
+        readpage_00h_30h(base_addr,  wayNo +1 , 0x00000000, rowAddr, BYTES_PER_DATA_REGION_OF_PAGE, (uint32_t)dataBufAddr);
 		//V2FReadPageTriggerAsync(chCtlReg[chNo], wayNo, rowAddr);
 	}
 	//else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_READ_TRANSFER)
@@ -678,26 +686,26 @@ void IssueNandReq(unsigned int chNo, unsigned int wayNo)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
 
-        progpage_80h_10h(base_addr, wayNo, 0x00000000, rowAddr, BYTES_PER_DATA_REGION_OF_PAGE, spareDataBufAddr);
+        progpage_80h_10h(base_addr, wayNo +1 , 0x00000000, rowAddr, BYTES_PER_DATA_REGION_OF_PAGE, (uint32_t)spareDataBufAddr);
 		//V2FProgramPageAsync(chCtlReg[chNo], wayNo, rowAddr, dataBufAddr, spareDataBufAddr);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_ERASE)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_CHECK;
 
-        eraseblock_60h_d0h(base_addr, wayNo, rowAddr);
+        eraseblock_60h_d0h(base_addr, wayNo +1 , rowAddr);
 		//V2FEraseBlockAsync(chCtlReg[chNo], wayNo, rowAddr);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_RESET)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_NONE;
-        reset_ffh(base_addr, wayNo);
+        reset_ffh(base_addr, wayNo +1 );
 		//V2FResetSync(chCtlReg[chNo], wayNo);
 	}
 	else if(reqPoolPtr->reqPool[reqSlotTag].reqCode == REQ_CODE_SET_FEATURE)
 	{
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_NONE;
-        setfeature_efh(base_addr, wayNo, 0x15000000);
+        setfeature_efh(base_addr, wayNo +1 , 0x15000000);
 		//V2FEnterToggleMode(chCtlReg[chNo], wayNo, TEMPORARY_PAY_LOAD_ADDR);
 	}
 	else
@@ -745,9 +753,9 @@ unsigned int GenerateNandRowAddr(unsigned int reqSlotTag)
 		assert(!"[WARNING] wrong nand addr option [WARNING]");
 
 	if(lun == 0)
-		rowAddr = LUN_0_BASE_ADDR + tempBlockNo * PAGES_PER_MLC_BLOCK + tempPageNo;
+		rowAddr = LUN_0_BASE_ADDR + tempBlockNo * PAGES_PER_SLC_BLOCK + tempPageNo;
 	else
-		rowAddr = LUN_1_BASE_ADDR + tempBlockNo * PAGES_PER_MLC_BLOCK + tempPageNo;
+		rowAddr = LUN_1_BASE_ADDR + tempBlockNo * PAGES_PER_SLC_BLOCK + tempPageNo;
 
 	return rowAddr;
 }
@@ -829,15 +837,20 @@ unsigned int CheckReqStatus(unsigned int chNo, unsigned int wayNo)
 	//}
 	//else 
 	uint32_t base_addr;
-    if(chNo==2)
+    if(chNo==1)
+    	{
     	base_addr=NSC_1_BASEADDR;
-    else if(chNo==1)
+    	}
+    else if(chNo==0)
+    	{
     	base_addr=NSC_0_BASEADDR;
+    	}
+
 	if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_CHECK)
 	{
 		//statusReportPtr = (unsigned int*)(&statusReportTablePtr->statusReport[chNo][wayNo]);
 
-        readstatus_70h(base_addr, wayNo);
+        readstatus_70h(base_addr, wayNo+1);
 		//V2FStatusCheckAsync(chCtlReg[chNo], wayNo, statusReportPtr);
 
 		dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt = REQ_STATUS_CHECK_OPT_REPORT;
@@ -851,7 +864,7 @@ unsigned int CheckReqStatus(unsigned int chNo, unsigned int wayNo)
 		{
 			//status = V2FEliminateReportDoneFlag(statusReport);
 
-			if(status & 0x01==0x0)
+			if((status & 0x01)==0x0)
 			{
 				//if (V2FRequestFail(status))
 				//	return REQ_STATUS_FAIL;
@@ -865,7 +878,7 @@ unsigned int CheckReqStatus(unsigned int chNo, unsigned int wayNo)
 	}
 	else if(dieStateTablePtr->dieState[chNo][wayNo].reqStatusCheckOpt == REQ_STATUS_CHECK_OPT_NONE)
 	{
-		readyBusy = ((Xil_In32(base_addr+rNandRBStatus) & 0x0000ff00) >> 8);
+		readyBusy = Xil_In32(base_addr+rNandRBStatus);
 
 		if(readyBusy==1)
 			return REQ_STATUS_DONE;
@@ -878,25 +891,25 @@ unsigned int CheckReqStatus(unsigned int chNo, unsigned int wayNo)
 
 unsigned int CheckEccErrorInfo(unsigned int chNo, unsigned int wayNo)
 {
-	unsigned int errorInfo0, errorInfo1, reqSlotTag;
+//	unsigned int errorInfo0, errorInfo1, reqSlotTag;
 
-	reqSlotTag = nandReqQ[chNo][wayNo].headReq;
+//	reqSlotTag = nandReqQ[chNo][wayNo].headReq;
 
-	errorInfo0 = eccErrorInfoTablePtr->errorInfo[chNo][wayNo][0];
-	errorInfo1 = eccErrorInfoTablePtr->errorInfo[chNo][wayNo][1];
+//	errorInfo0 = eccErrorInfoTablePtr->errorInfo[chNo][wayNo][0];
+//	errorInfo1 = eccErrorInfoTablePtr->errorInfo[chNo][wayNo][1];
 
-	if(V2FCrcValid(errorInfo0))
-		if(V2FSpareChunkValid(errorInfo0))
-			if(V2FPageChunkValid(errorInfo1))
-			{
-				if(reqPoolPtr->reqPool[reqSlotTag].reqOpt.nandEccWarning == REQ_OPT_NAND_ECC_WARNING_ON)
-					if(V2FWorstChunkErrorCount(errorInfo0)> BIT_ERROR_THRESHOLD_PER_CHUNK)
-						return ERROR_INFO_WARNING;
+//	if(V2FCrcValid(errorInfo0))
+//		if(V2FSpareChunkValid(errorInfo0))
+//			if(V2FPageChunkValid(errorInfo1))
+//			{
+//				if(reqPoolPtr->reqPool[reqSlotTag].reqOpt.nandEccWarning == REQ_OPT_NAND_ECC_WARNING_ON)
+//					if(V2FWorstChunkErrorCount(errorInfo0)> BIT_ERROR_THRESHOLD_PER_CHUNK)
+//						return ERROR_INFO_WARNING;
 
-				return ERROR_INFO_PASS;
-			}
+//				return ERROR_INFO_PASS;
+//			}
 
-	return ERROR_INFO_FAIL;
+	return 1;//ERROR_INFO_FAIL;
 }
 
 void ExecuteNandReq(unsigned int chNo, unsigned int wayNo, unsigned int reqStatus)
@@ -960,7 +973,7 @@ void ExecuteNandReq(unsigned int chNo, unsigned int wayNo, unsigned int reqStatu
 					}
 
 				//grown bad block information update
-				phyBlockNo = ((rowAddr % LUN_1_BASE_ADDR) / PAGES_PER_MLC_BLOCK) + ((rowAddr / LUN_1_BASE_ADDR)* TOTAL_BLOCKS_PER_LUN);
+				phyBlockNo = ((rowAddr % LUN_1_BASE_ADDR) / PAGES_PER_SLC_BLOCK) + ((rowAddr / LUN_1_BASE_ADDR)* TOTAL_BLOCKS_PER_LUN);
 				UpdatePhyBlockMapForGrownBadBlock(Pcw2VdieTranslation(chNo, wayNo), phyBlockNo);
 
 				retryLimitTablePtr->retryLimit[chNo][wayNo] = RETRY_LIMIT;
@@ -973,7 +986,7 @@ void ExecuteNandReq(unsigned int chNo, unsigned int wayNo, unsigned int reqStatu
 				xil_printf("ECC Uncorrectable Soon on ch %x way %x rowAddr %x / completion %x statusReport %x \r\n", chNo, wayNo, rowAddr, completeFlagTablePtr->completeFlag[chNo][wayNo],statusReportTablePtr->statusReport[chNo][wayNo]);
 
 				//grown bad block information update
-				phyBlockNo = ((rowAddr % LUN_1_BASE_ADDR) / PAGES_PER_MLC_BLOCK) + ((rowAddr / LUN_1_BASE_ADDR)* TOTAL_BLOCKS_PER_LUN);
+				phyBlockNo = ((rowAddr % LUN_1_BASE_ADDR) / PAGES_PER_SLC_BLOCK) + ((rowAddr / LUN_1_BASE_ADDR)* TOTAL_BLOCKS_PER_LUN);
 				UpdatePhyBlockMapForGrownBadBlock(Pcw2VdieTranslation(chNo, wayNo), phyBlockNo);
 
 				retryLimitTablePtr->retryLimit[chNo][wayNo] = RETRY_LIMIT;
